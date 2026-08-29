@@ -5,7 +5,6 @@ CFLAGS := -Wall -O2
 PYTHON := python3
 PIP := pip3
 
-# Directories
 BIN_DIR := /usr/bin
 MIME_DIR := /usr/share/mime/applications
 INSTALL_PREFIX ?= /
@@ -37,7 +36,7 @@ clean:
 	@echo "Cleaned"
 
 help:
-	@echo "EDI Build System"
+	@echo "EDI Build"
 	@echo ""
 	@echo "Usage: make [target]"
 	@echo ""
