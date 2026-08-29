@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://freedesktop.org">
+  <mime-type type="application/x-edi">
+    <comment>Executable Disc Image</comment>
+    <sub-class-of type="application/octet-stream"/>
+    <magic priority="95">
+      <match value="0x45444921" type="big32" offset="0"/>
+    </magic>
+    <glob pattern="*.edi"/>
+    <icon name="media-optical"/>
+  </mime-type>
+</mime-info>

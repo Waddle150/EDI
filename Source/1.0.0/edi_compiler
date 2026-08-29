@@ -1,0 +1,242 @@
+#!/usr/bin/env python3
+import sys
+import os
+import struct
+from PyQt6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QLabel, QLineEdit, 
+    QPushButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout, 
+    QHBoxLayout, QFileDialog, QMessageBox, QMenu
+)
+from PyQt6.QtCore import Qt, QPoint
+
+class EdiVfsCompilerApp(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("EDI Maker")
+        self.setGeometry(100, 100, 700, 600)
+        self.init_ui()
+
+    def init_ui(self):
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        main_layout = QVBoxLayout(central_widget)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(10)
+
+        tools_layout = QHBoxLayout()
+        self.add_folder_btn = QPushButton("Add Folder")
+        self.add_folder_btn.clicked.connect(self.add_real_folder)
+        self.add_file_btn = QPushButton("Add File...")
+        self.add_file_btn.clicked.connect(self.add_real_files)
+        self.create_dir_btn = QPushButton("Create Folder")
+        self.create_dir_btn.clicked.connect(self.create_virtual_folder)
+        
+        tools_layout.addWidget(self.add_folder_btn)
+        tools_layout.addWidget(self.add_file_btn)
+        tools_layout.addWidget(self.create_dir_btn)
+        main_layout.addLayout(tools_layout)
+
+        exec_label = QLabel("Path to executed file (Inside EDI):")
+        exec_label.setStyleSheet("font-weight: bold; font-size: 13px;")
+        main_layout.addWidget(exec_label)
+        self.entry_le = QLineEdit("bin/main.bin")
+        main_layout.addWidget(self.entry_le)
+
+        files_label = QLabel("EDI (Right-click items to manage / set entry point):")
+        files_label.setStyleSheet("font-weight: bold; font-size: 13px;")
+        main_layout.addWidget(files_label)
+
+        self.files_tree = QTreeWidget()
+        self.files_tree.setHeaderLabels(["Name", "Type", "Source Path"])
+        self.files_tree.setColumnWidth(0, 250)
+        self.files_tree.setColumnWidth(1, 80)
+        
+        self.files_tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.files_tree.customContextMenuRequested.connect(self.show_context_menu)
+        main_layout.addWidget(self.files_tree)
+
+        self.generate_btn = QPushButton("Generate EDI File")
+        self.generate_btn.clicked.connect(self.compile_edi)
+        self.generate_btn.setStyleSheet("""
+            QPushButton { background-color: #1b5e20; color: white; font-weight: bold; font-size: 14px; border-radius: 4px; }
+            QPushButton:hover { background-color: #2e7d32; }
+        """)
+        self.generate_btn.setFixedHeight(45)
+        main_layout.addWidget(self.generate_btn)
+
+    def add_real_folder(self):
+        selected = QFileDialog.getExistingDirectory(self, "Select Folder to Add")
+        if not selected:
+            return
+            
+        base_name = os.path.basename(selected)
+        current_target = self.files_tree.currentItem()
+        
+        if current_target and current_target.text(1) == "Folder":
+            parent_item = current_target
+        else:
+            parent_item = self.files_tree.invisibleRootItem()
+            
+        root_folder = QTreeWidgetItem([base_name, "Folder", ""])
+        parent_item.addChild(root_folder)
+        dirs_dict = {"": root_folder}
+        
+        for root_dir, dirs, files in os.walk(selected):
+            dirs.sort()
+            files.sort()
+            
+            for file in files:
+                abs_path = os.path.join(root_dir, file)
+                rel_path = os.path.relpath(abs_path, selected)
+                rel_dir = os.path.dirname(rel_path)
+                
+                current_parent = root_folder
+                if rel_dir:
+                    parts = rel_dir.split(os.sep)
+                    current_parts_path = ""
+                    for part in parts:
+                        prev_parts_path = current_parts_path
+                        current_parts_path = os.path.join(current_parts_path, part) if current_parts_path else part
+                        
+                        if current_parts_path not in dirs_dict:
+                            folder_item = QTreeWidgetItem([part, "Folder", ""])
+                            dirs_dict[prev_parts_path].addChild(folder_item)
+                            dirs_dict[current_parts_path] = folder_item
+                            
+                        current_parent = dirs_dict[current_parts_path]
+                        
+                file_item = QTreeWidgetItem([file, "File", abs_path])
+                file_item.setData(0, Qt.ItemDataRole.UserRole, abs_path)
+                current_parent.addChild(file_item)
+                
+        self.files_tree.expandAll()
+
+    def add_real_files(self):
+        files, _ = QFileDialog.getOpenFileNames(self, "Select File(s) to Add")
+        if not files:
+            return
+            
+        current_target = self.files_tree.currentItem()
+        if current_target and current_target.text(1) == "Folder":
+            parent_item = current_target
+        else:
+            parent_item = self.files_tree.invisibleRootItem()
+            
+        for abs_path in files:
+            file_name = os.path.basename(abs_path)
+            file_item = QTreeWidgetItem([file_name, "File", abs_path])
+            file_item.setData(0, Qt.ItemDataRole.UserRole, abs_path)
+            parent_item.addChild(file_item)
+
+    def create_virtual_folder(self):
+        current_target = self.files_tree.currentItem()
+        if current_target and current_target.text(1) == "Folder":
+            parent_item = current_target
+        else:
+            parent_item = self.files_tree.invisibleRootItem()
+            
+        new_folder = QTreeWidgetItem(["New_Folder", "Folder", ""])
+        new_folder.setFlags(new_folder.flags() | Qt.ItemFlag.ItemIsEditable)
+        parent_item.addChild(new_folder)
+        self.files_tree.expandItem(parent_item)
+
+    def show_context_menu(self, position: QPoint):
+        item = self.files_tree.itemAt(position)
+        if not item:
+            return
+            
+        menu = QMenu()
+        remove_action = menu.addAction("Remove Item")
+        set_exec_action = None
+        
+        if item.text(1) == "File":
+            set_exec_action = menu.addAction("Set as Executed Entry Point")
+            
+        action = menu.exec(self.files_tree.viewport().mapToGlobal(position))
+        
+        if action == remove_action:
+            parent = item.parent() or self.files_tree.invisibleRootItem()
+            parent.removeChild(item)
+            
+        elif set_exec_action and action == set_exec_action:
+            path_parts = []
+            curr = item
+            while curr is not None:
+                path_parts.append(curr.text(0))
+                curr = curr.parent()
+            path_parts.reverse()
+            virtual_rel_path = "/".join(path_parts)
+            self.entry_le.setText(virtual_rel_path)
+    def build_vfs_paths(self, item, current_vpath=""):
+        packed_files = []
+        for i in range(item.childCount()):
+            child = item.child(i)
+            name = child.text(0)
+            next_vpath = f"{current_vpath}/{name}" if current_vpath else name
+            
+            if child.text(1) == "File":
+                abs_path = child.data(0, Qt.ItemDataRole.UserRole)
+                packed_files.append((abs_path, next_vpath))
+            else:
+                packed_files.extend(self.build_vfs_paths(child, next_vpath))
+        return packed_files
+
+    def compile_edi(self):
+        root = self.files_tree.invisibleRootItem()
+        packed_files = self.build_vfs_paths(root)
+        
+        if not packed_files:
+            QMessageBox.critical(self, "Error", "Your workspace is empty! Add files before compiling.")
+            return
+            
+        entry_path = self.entry_le.text().strip().encode('utf-8')
+        output_path, _ = QFileDialog.getSaveFileName(
+            self, "Save EDI Disc", "", "EDI Discs (*.edi)"
+        )
+        if not output_path: 
+            return
+
+        try:
+            with open(output_path, 'wb') as edi:
+                edi.write(b'EDI!')  
+                edi.write(struct.pack('<I', len(entry_path)))
+                edi.write(entry_path)
+                edi.write(struct.pack('<I', len(packed_files))) 
+                
+                header_size = 12 + len(entry_path)
+                for _, v_path in packed_files:
+                    header_size += 12 + len(v_path.encode('utf-8'))
+                
+                current_offset = header_size
+                metadata = []
+                
+                for abs_p, v_path in packed_files:
+                    path_bytes = v_path.encode('utf-8')
+                    size = os.path.getsize(abs_p)
+                    edi.write(struct.pack('<I', len(path_bytes)))
+                    edi.write(path_bytes)
+                    edi.write(struct.pack('<II', size, current_offset))
+                    
+                    metadata.append((abs_p, size))
+                    current_offset += size
+                    
+                for abs_p, _ in metadata:
+                    with open(abs_p, 'rb') as data_file:
+                        while True:
+                            chunk = data_file.read(64 * 1024)
+                            if not chunk:
+                                break
+                            edi.write(chunk)
+                        
+            QMessageBox.information(
+                self, "Success", f"Compiled {len(packed_files)} file(s) into:\n{output_path}"
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Failed", str(e))
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = EdiVfsCompilerApp()
+    window.show()
+    sys.exit(app.exec())
+
