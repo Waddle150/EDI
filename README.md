@@ -1,4 +1,4 @@
-EDI is short for Executable Disc Image, and is meant to be the executable version of an ISO. It is intended to be used for packaging apps and games.
+EDI is short for Executable Disc Image, and is meant to be the executable version of an ISO. It is intended to be used for packaging apps and games. I know it's a little small, but that's the point, its meant to add functionality to the OS without having to take up much space.
 
 - You may not advertise this as your own
 - This may be used or packaged in apps with given credit to contributors
