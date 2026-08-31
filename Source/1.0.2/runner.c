@@ -6,7 +6,6 @@
 #include <unistd.h>
 #include <ftw.h>
 #include <sys/wait.h>
-#include <ctype.h>
 
 #define DEFAULT_BUFFER_SIZE (64 * 1024)
 #define MAX_CACHED_DIRS 1024
@@ -138,8 +137,8 @@ int check_ram_safety(unsigned long total_size, int use_ram) {
         printf("[EDI] Continue anyway? (y/n): ");
         fflush(stdout);
 
-        int response;
-        while ((response = getchar()) != '\n' && response != EOF);
+        int response = getchar();
+        while (getchar() != '\n');
         if (response != 'y' && response != 'Y') {
             printf("[EDI] Cancelled.\n");
             return 0;
@@ -147,16 +146,6 @@ int check_ram_safety(unsigned long total_size, int use_ram) {
     }
 
     return 1;
-}
-
-int confirm_chmod(const char *entry_point) {
-    printf("[EDI] WARNING: About to make %s executable\n", entry_point);
-    printf("[EDI] Proceed? (y/n): ");
-    fflush(stdout);
-
-    int response;
-    while ((response = getchar()) != '\n' && response != EOF);
-    return (response == 'y' || response == 'Y');
 }
 
 Options parse_arguments(int argc, char *argv[]) {
@@ -322,20 +311,6 @@ int main(int argc, char *argv[]) {
 
     char entry_path[MAX_PATH_LEN];
     snprintf(entry_path, sizeof(entry_path), "%s%s", final_sandbox, entry_point);
-    
-    if (!confirm_chmod(entry_point)) {
-        printf("[EDI] Cancelled execution.\n");
-        nftw(final_sandbox, cleanup_callback, 64, CLEANUP_FLAGS);
-        for (unsigned int i = 0; i < file_count; i++) {
-            free(file_names[i]);
-        }
-        free(file_names);
-        free(file_sizes);
-        free(file_offsets);
-        free(entry_point);
-        return 1;
-    }
-
     chmod(entry_path, 0755);
 
     printf("[EDI] Running... %s\n", entry_path);
