@@ -252,7 +252,7 @@ int main(int argc, char *argv[]) {
     unsigned int *file_sizes = malloc(sizeof(unsigned int) * file_count);
     unsigned int *file_offsets = malloc(sizeof(unsigned int) * file_count);
     char **file_names = malloc(sizeof(char*) * file_count);
-    
+
     unsigned long total_size = 0;
     for (unsigned int i = 0; i < file_count; i++) {
         unsigned int name_len = 0;
@@ -264,7 +264,7 @@ int main(int argc, char *argv[]) {
 
         fread(&file_sizes[i], sizeof(unsigned int), 1, edi);
         fread(&file_offsets[i], sizeof(unsigned int), 1, edi);
-        
+
         total_size += file_sizes[i];
     }
 
