@@ -110,8 +110,8 @@ int get_exit_status(int status) {
 void print_usage(const char *program) {
     printf("Usage: %s [options] <path/to/game.edi>\n", program);
     printf("Options:\n");
-    printf("  --ram true|false       Load entire image into RAM (default: false)\n");
-    printf("  --buffer SIZE          Buffer size in KB (default: 64)\n");
+    printf("  --ram true|false       Load image into RAM instead of a directory in /tmp (default: false)\n");
+    printf("  --buffer SIZE          Buffer size in KB (default: 64, and please note that you DON'T NEED 100MB unless you play COD)\n");
     printf("  --sandbox PATH         Custom sandbox directory (default: /tmp/edi_sandbox/)\n");
 }
 
@@ -127,7 +127,7 @@ int check_ram_safety(unsigned long total_size, int use_ram) {
     printf("[EDI] Estimated needed: %lu MB\n", needed_mb);
 
     if (needed_mb > MAX_RAM_MB) {
-        fprintf(stderr, "[EDI] ERROR: Image too large for RAM mode (%lu MB > limit %u MB)\n", needed_mb, MAX_RAM_MB);
+        fprintf(stderr, "[EDI] ERROR: Image is too large for RAM mode (%lu MB > limit %u MB)\n", needed_mb, MAX_RAM_MB);
         return 0;
     }
 
@@ -143,6 +143,9 @@ int check_ram_safety(unsigned long total_size, int use_ram) {
             printf("[EDI] Cancelled.\n");
             return 0;
         }
+	}
+	if (available_mb > (needed_mb+1000000000)){
+		fprintf(stderr, "[EDI] WARNING: What could possibly be needed for 1000 TERABYTES?\n")
     }
 
     return 1;
@@ -197,7 +200,7 @@ Options parse_arguments(int argc, char *argv[]) {
     }
 
     if (opts.edi_path == NULL) {
-        fprintf(stderr, "[EDI] No .edi file specified\n");
+        fprintf(stderr, "[EDI] No Executable Disc Image specified\n");
         print_usage(argv[0]);
         exit(1);
     }
