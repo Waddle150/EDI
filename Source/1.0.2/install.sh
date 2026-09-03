@@ -15,7 +15,8 @@ if [ "$OS_TYPE" == "linux" ]; then
 elif [ "$OS_TYPE" == "windows" ]; then
     net session > /dev/null 2>&1
     if [ $? -ne 0 ]; then
-        echo "Error: idk"
+        echo "Error: Unsuported OS"
+        echo "If you believe that this OS should work with the installer, then please file an Issue in the Github repository https://github.com/Waddle150."
         exit 1
     fi
 fi
